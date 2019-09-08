@@ -1,0 +1,66 @@
+---
+title: "MY ENVRIOMENT: The Home Owners Gudie"
+author: "The Step Dads"
+output: html_document
+---
+
+## Bloxplot of Montly discharge
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r echo=FALSE}
+library(zoo)
+library(hydroTSM)
+library(lubridate) 
+library(lattice)
+
+stn<- "141006A"
+
+fn<-paste("~/Desktop/Rfiles/Q1 R/",stn,".csv",sep="")
+
+ncol <- max(count.fields(fn, sep = ","))
+
+nv<-as.integer((ncol-2)/6)
+
+hd<-read.csv(fn,header=FALSE,nrows=4,sep=",")
+
+varn<-character(0)
+
+cn<-2
+for(i in 1:nv)
+{
+  
+  varn[i]<-as.character(hd[3,cn])
+  cn=cn+6
+  
+}
+
+ddtemp<-read.csv(fn,header=FALSE,skip=4,sep=",")
+
+dd<-ddtemp[1:(nrow(ddtemp)),1:(ncol-1)]
+
+cnames<-NULL
+for(c in 1:nv){cnames<-c(cnames,paste(c("Mean","Qual","Min","Qual","Max","Qual"),rep(c,6)))}
+
+
+dd[, 2] <- as.numeric(as.character(dd[,2]))
+
+stdate<- ISOdate(1959,10,02)
+findate<-ISOdate(2016,02,16)
+date_ind<-seq(stdate,findate,by="day")
+
+zd<-zoo(dd[,c(2,4,6)],date_ind)
+
+rem_dates<-which(index(zd)<ISOdate(1960,1,1))
+m <- daily2monthly(zd[-rem_dates,3], FUN=sum, na.rm=TRUE)
+
+cmonth <- format(time(m), "%b")
+
+month <- factor(cmonth, levels=unique(cmonth), ordered=TRUE)
+
+boxplot(coredata(m) ~ month, col="lightblue", ylab="Cumecs", main=stn)
+
+```
+

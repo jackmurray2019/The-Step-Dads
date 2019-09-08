@@ -1,0 +1,67 @@
+---
+title: "MY ENVRIOMENT: The Home Owners Gudie"
+author: "The Step Dads"
+output: html_document
+---
+
+## Flood Duration Curve
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r echo=FALSE, error=FALSE, fig.align='center', fig.cap="Figure, fig.height=6, fig.width=8, message=FALSE, results='hide'}
+library(zoo)
+library(hydroTSM)
+library(lubridate) 
+library(lattice)
+
+stn<- "141006A"
+
+fn<-paste("~/Desktop/Rfiles/Q1 R/",stn,".csv",sep="")
+
+ncol <- max(count.fields(fn, sep = ","))
+
+nv<-as.integer((ncol-2)/6)
+
+hd<-read.csv(fn,header=FALSE,nrows=4,sep=",")
+
+varn<-character(0)
+
+cn<-2
+for(i in 1:nv)
+{
+  
+  varn[i]<-as.character(hd[3,cn])
+  cn=cn+6
+  
+}
+
+ddtemp<-read.csv(fn,header=FALSE,skip=4,sep=",")
+
+dd<-ddtemp[1:(nrow(ddtemp)),1:(ncol-1)]
+
+cnames<-NULL
+for(c in 1:nv){cnames<-c(cnames,paste(c("Mean","Qual","Min","Qual","Max","Qual"),rep(c,6)))}
+
+
+dd[, 2] <- as.numeric(as.character(dd[,2]))
+
+stdate<- ISOdate(1959,10,02)
+findate<-ISOdate(2016,02,16)
+date_ind<-seq(stdate,findate,by="day")
+
+zd<-zoo(dd[,c(2,4,6)],date_ind)
+
+tfe=0.2
+
+la<-c(0.1,1,10,100,200)
+
+ylim = range(pretty(c(0.1, zd[,3])))
+
+fdc(zd[,3],ylab=varn[1],thr.shw=FALSE,col="green",lty=1,pch=0,lwd=1,ylim=ylim,yat=la,new=TRUE)
+grid(nx= NULL, ny = NULL, lty = 1, lwd = 1, col="gray60",equilogs = TRUE)
+
+
+```
+

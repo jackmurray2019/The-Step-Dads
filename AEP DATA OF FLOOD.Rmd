@@ -1,0 +1,136 @@
+---
+title: "MY ENVRIOMENT: The Home Owners Gudie"
+output: html_document
+---
+
+## AEP Data of flood Anaylsis
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r}
+library(RCurl)
+library(jsonlite)
+library(stringr)
+library(dplyr)
+library(ggplot2)
+
+rffe.data <- postForm("http://rffe.arr-software.org",
+                      catchment_name = "test1",
+                      lato = "-26.630000",
+                      lono = "153.04",
+                      latc = "-26.650000",
+                      lonc = "153.066666",
+                      area = "33"
+)
+
+rffe.data <- as.character(rffe.data) 
+
+x <- stringr::str_match_all(rffe.data, '\\[\\{.*\\}\\]' ) 
+gauges.ffa.JSON <- x[[1]][1,] 
+RFFE.res <-x[[1]][2,] 
+
+
+gauges.ffa.JSON
+
+gauges.ffa.df <- jsonlite::fromJSON(gauges.ffa.JSON, flatten = TRUE)
+
+gauges.ffa <- gauges.ffa.df %>% 
+  select(station_id, area, 
+         record.length = sflength,
+         latc, lonc, lato, lono, 
+         bcf, i2_6h, i50_6h, 
+         mar, 
+         shape.factor = sf, 
+         flow_1pc = q1,
+         flow_2pc = q2,
+         flow_5pc = q5,
+         flow_10pc = q10,
+         flow_20pc = q20,
+         flow_50pc = q50,
+         flow_1pc_LCL = lower1,
+         flow_2pc_LCL = lower2,
+         flow_5pc_LCL = lower5,
+         flow_10pc_LCL = lower10,
+         flow_20pc_LCL = lower20,
+         flow_50pc_LCL = lower50,
+         flow_1pc_UCL = upper1,
+         flow_2pc_UCL = upper2,
+         flow_5pc_UCL = upper5,
+         flow_10pc_UCL = upper10,
+         flow_20pc_UCL = upper20,
+         flow_50pc_UCL = upper50,
+         region.name,
+         region.number,
+         region.version,
+         statistics.mean = statistics.mean,
+         statistics.mean_se,
+         statistics.skew,
+         statistics.skew_se,
+         statistics.stdev,
+         statistics.stdev_se)
+
+stat.correlation <-t(sapply(gauges.ffa.df$statistics.correlations, unlist))
+stat.correlation <- as.data.frame(stat.correlation)
+stat.correlation <- stat.correlation[ ,c(2,4,5)] 
+names(stat.correlation) = c('cor_mean_sd', 'cor_mean_skew', 'cor_sd_skew')
+
+gauges.ffa <- cbind(gauges.ffa, stat.correlation) # add to gauges.ffa
+
+gauges.ffa
+
+RFFE.res
+RFFE.res <- str_replace_all(RFFE.res, "[{\\[\\]}]", "") # remove braces and square brackets
+RFFE.res <- str_replace_all(RFFE.res, c(":" = "", # remove characters that are not required
+                            "'"= "", 
+                            "aep" = "", 
+                            "lower_limit"= "", 
+                            "upper_limit" = "", 
+                            "flow" = "",
+                            "\\s+" = "")) # remove spaces
+RFFE.res <- unlist(str_split(RFFE.res, ',')) # split at commas
+RFFE.res <- as.data.frame(matrix(as.numeric(RFFE.res), ncol = 4, byrow = TRUE)) # convert to a data frame
+names(RFFE.res) <- c('ARI', 'upper_limit', 'lower_limit', 'flow') # name columns
+str(RFFE.res)
+
+RFFE.res
+
+MyTheme = theme_bw() + 
+  theme(
+    panel.background = element_rect(fill="gray98"),
+    axis.title.x = element_text(colour="grey20", size=14, margin=margin(20,0,0,0)),
+    axis.text.x = element_text(colour="grey20",size=12),
+    axis.title.y = element_text(colour="grey20",size=14, margin = margin(0,20,0,0)),
+    axis.text.y = element_text(colour="grey20",size=12),
+    legend.title = element_text(colour="grey20",size=12),
+    plot.margin = unit(c(0.5, 0.5, 1, 0.5), "cm"), # top, right, bottom, left
+    panel.grid.minor = element_line(colour="grey90", size=0.2),
+    panel.grid.major = element_line(colour="grey90", size=0.4))
+
+my.x.labels = c(2, 5, 10, 20, 50,100)
+my.x.breaks <- qnorm(1/my.x.labels, lower.tail = FALSE)
+
+my.y.breaks <- c(10, 100, 1000, 2000)
+my.y.breaks
+my.y.minor_breaks <- c(1:10, seq(10,100,10), seq(100, 1000, 100))
+
+RFFE.res %>%
+  mutate(AEP = 1/ARI) %>%
+  mutate(z.score = qnorm(AEP, lower.tail = FALSE)) %>%
+  ggplot() + 
+    geom_line(aes(x = z.score, y = flow), linetype = 1, colour = 'green') +
+    geom_point(aes(x = z.score, y = flow), colour = 'blue', size = 3) +
+    geom_line(aes(x = z.score, y = lower_limit), linetype = 2, colour = 'red') +
+    geom_line(aes(x = z.score, y = upper_limit), linetype = 2, colour = 'red') +
+    scale_x_continuous(name = 'AEP 1 in Y years', breaks = my.x.breaks, labels = my.x.labels ) +
+    scale_y_log10(name = bquote('Peak discharge (m' ^3 *'s' ^-1 *')'), 
+                  limits = c(1,2000), 
+                  breaks = my.y.breaks, 
+                  labels = my.y.breaks, 
+                  minor_breaks = my.y.minor_breaks) +
+    MyTheme
+
+```
+
+
